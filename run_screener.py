@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """
 CLI entry point — run the EOD breakout screener and optionally push Telegram alerts.
 
