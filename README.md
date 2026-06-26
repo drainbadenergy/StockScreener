@@ -4,6 +4,10 @@
 
 An automated Python-based stock screener that filters the Nifty 500 universe for high-probability, institutional-grade breakout setups and delivers real-time alerts directly to a Telegram group.
 
+
+<img width="846" height="367" alt="image" src="https://github.com/user-attachments/assets/e5a53308-b7a4-4805-8831-eed15d1d949e" />
+
+
 ## 📖 Overview
 This script is designed to run automatically at market close. It downloads 2 years of historical daily OHLCV data for 467 tradable NSE equities via Yahoo Finance (`yfinance`). It then pushes every stock through a strict **6-Gate Technical Filter** based on Trend, Volatility Contraction (VCP), and Relative Strength. 
 
