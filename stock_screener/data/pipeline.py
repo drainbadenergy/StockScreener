@@ -123,9 +123,12 @@ def _download_batch(
     """Download a batch of tickers; returns raw yfinance DataFrame."""
     if not tickers:
         return pd.DataFrame()
-    # Use the retry wrapper!
-    return _download_with_retry(tickers=tickers, period=period)
-
+    try:
+        return _download_with_retry(tickers=tickers, period=period)
+    except Exception as exc:
+        # Log the failure but return an empty DataFrame so the loop continues
+        logger.warning("Batch download failed for chunk %s: %s", tickers[:3], exc)
+        return pd.DataFrame()
 
 def _merge_downloads(parts: list[pd.DataFrame]) -> pd.DataFrame:
     """Combine chunked multi-ticker downloads on the ticker column level."""
@@ -153,8 +156,11 @@ def _download_all_tickers(tickers: list[str], *, period: str) -> pd.DataFrame:
 
 def _retry_single_ticker(ticker: str, *, period: str) -> pd.DataFrame:
     """Fallback single-ticker download when batch response is empty."""
-    # Use the retry wrapper!
-    return _download_with_retry(tickers=ticker, period=period)
+    try:
+        return _download_with_retry(tickers=ticker, period=period)
+    except Exception as exc:
+        logger.warning("Single retry failed for %s: %s", ticker, exc)
+        return pd.DataFrame()
 
 
 def fetch_historical_data(
