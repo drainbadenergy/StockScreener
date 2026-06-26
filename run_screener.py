@@ -99,8 +99,6 @@ Usage:
     python run_screener.py --symbols path/to/custom_symbols.txt
 """
 
-from __future__ import annotations
-
 import argparse
 import logging
 import sys

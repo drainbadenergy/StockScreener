@@ -6,9 +6,9 @@ full time series at once — no Python loops over daily rows.
 
 The six gates (ALL must pass on the latest bar):
   1. Trend:        Close > SMA_200  AND  SMA_50 > SMA_200
-  2. VCP:          ATR_10 < ATR_50
+  2. VCP:          ATR_10 < ATR_50 (with 5-day streak check)
   3. Rel Strength: Stock 50d return > Benchmark 50d return
-  4. Volume:       Volume > 2.5 × 20-day Volume SMA
+  4. Volume:       Volume > 1,000,000 AND Volume > 2.5 × 20-day Volume SMA
   5. Breakout:     Close > 50-day resistance (max High of prior 50 sessions)
   6. Anti-chase:   Close <= Resistance × 1.05
 """
@@ -77,6 +77,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     out["ATR_10"] = ta.atr(out["High"], out["Low"], out["Close"], length=10).shift(1)
     out["ATR_50"] = ta.atr(out["High"], out["Low"], out["Close"], length=50).shift(1)
 
+    # --- VCP Streak: require 3+ consecutive days of contraction ---
+    out["VCP_Streak"] = (out["ATR_10"] < out["ATR_50"]).astype(int).rolling(5).sum()
+
     # --- Institutional volume baseline ---
     out["Vol_SMA_20"] = out["Volume"].rolling(
         window=VOLUME_SMA_WINDOW, min_periods=VOLUME_SMA_WINDOW
@@ -104,6 +107,7 @@ def _latest_row_passes_gates(
         "SMA_200",
         "ATR_10",
         "ATR_50",
+        "VCP_Streak",
         "Volume",
         "Vol_SMA_20",
         "Resistance_50",
@@ -116,19 +120,27 @@ def _latest_row_passes_gates(
     if resistance <= 0:
         return False
 
+    # Gate 1: Trend
     trend_ok = (latest["Close"] > latest["SMA_200"]) and (
         latest["SMA_50"] > latest["SMA_200"]
     )
-    # In compute_indicators():
-    out["VCP_Streak"] = (out["ATR_10"] < out["ATR_50"]).astype(int).rolling(5).sum()
-    # In screener:
+
+    # Gate 2: VCP with 3+ day streak
     vcp_ok = latest["VCP_Streak"] >= 3
+
+    # Gate 3: Relative Strength
     rs_ok = latest["Return_50d"] > benchmark_return_50d
 
+    # Gate 4: Volume (absolute floor + spike multiplier)
     MIN_VOLUME_ABSOLUTE = 1_000_000  # 1 million shares
-    volume_ok = (latest["Volume"] > MIN_VOLUME_ABSOLUTE) and (latest["Volume"] > (VOLUME_SPIKE_MULTIPLIER * latest["Vol_SMA_20"]))
+    volume_ok = (latest["Volume"] > MIN_VOLUME_ABSOLUTE) and (
+        latest["Volume"] > (VOLUME_SPIKE_MULTIPLIER * latest["Vol_SMA_20"])
+    )
 
+    # Gate 5: Breakout
     breakout_ok = latest["Close"] > resistance
+
+    # Gate 6: Anti-chase
     anti_chase_ok = latest["Close"] <= (resistance * ANTI_CHASE_BUFFER)
 
     return bool(trend_ok and vcp_ok and rs_ok and volume_ok and breakout_ok and anti_chase_ok)

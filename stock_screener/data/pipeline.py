@@ -1,15 +1,9 @@
 """
 Batch historical data pipeline for NSE equities and the Nifty 50 benchmark.
-
 Uses yfinance parallel downloads (threads=True) to minimize network latency.
-All per-row indicator math lives in the screener engine — this module only fetches
-and normalizes OHLCV frames.
 """
 
 from __future__ import annotations
-
-import time
-from tenacity import retry, wait_exponential, stop_after_attempt
 
 import logging
 from typing import Iterable
@@ -23,17 +17,10 @@ from stock_screener.config import (
     MIN_TRADING_DAYS,
     YFINANCE_SUFFIX,
 )
-from stock_screener.data.symbol_map import normalize_universe, resolve_symbol
+from stock_screener.data.symbol_map import resolve_symbol
 
 logger = logging.getLogger(__name__)
-# yfinance returns these column names after normalization.
 _OHLCV_COLUMNS = ["Open", "High", "Low", "Close", "Volume"]
-
-
-
-@retry(wait=wait_exponential(multiplier=1, min=4, max=30), stop=stop_after_attempt(5))
-def _download_with_retry(tickers, period):
-    return yf.download(tickers, period=period, interval="1d", threads=True, auto_adjust=True, progress=False)
 
 
 def to_yfinance_ticker(symbol: str) -> str:
@@ -60,20 +47,13 @@ def strip_yfinance_suffix(ticker: str) -> str:
 
 
 def _normalize_ohlcv_frame(raw: pd.DataFrame) -> pd.DataFrame:
-    """
-    Coerce a single-ticker download into a clean, sorted OHLCV DataFrame.
-
-    Drops rows with missing Close/Volume and removes duplicate index labels.
-    """
+    """Coerce a single-ticker download into a clean, sorted OHLCV DataFrame."""
     if raw is None or raw.empty:
         return pd.DataFrame(columns=_OHLCV_COLUMNS)
 
     frame = raw.copy()
-
-    # Flatten MultiIndex columns when a single ticker was downloaded.
     if isinstance(frame.columns, pd.MultiIndex):
-    # Explicitly extract only the 'Close' level if needed, or flatten safely
-       frame.columns = [col[1] if len(col) > 1 else col[0] for col in frame.columns.values]
+        frame.columns = frame.columns.get_level_values(-1)
 
     missing = [col for col in _OHLCV_COLUMNS if col not in frame.columns]
     if missing:
@@ -111,7 +91,6 @@ def _extract_ticker_frame(
     return _normalize_ohlcv_frame(downloaded[ticker])
 
 
-# Maximum tickers per yfinance batch request (large batches drop symbols silently).
 _DOWNLOAD_CHUNK_SIZE = 80
 
 
@@ -124,11 +103,20 @@ def _download_batch(
     if not tickers:
         return pd.DataFrame()
     try:
-        return _download_with_retry(tickers=tickers, period=period)
-    except Exception as exc:
-        # Log the failure but return an empty DataFrame so the loop continues
-        logger.warning("Batch download failed for chunk %s: %s", tickers[:3], exc)
+        # NO optional arguments that might cause trouble
+        return yf.download(
+            tickers=tickers,
+            period=period,
+            interval="1d",
+            group_by="ticker",
+            threads=True,
+            auto_adjust=True,
+            progress=False,
+        )
+    except Exception as e:
+        logger.warning("Batch download failed for chunk %s...: %s", tickers[:3], str(e)[:50])
         return pd.DataFrame()
+
 
 def _merge_downloads(parts: list[pd.DataFrame]) -> pd.DataFrame:
     """Combine chunked multi-ticker downloads on the ticker column level."""
@@ -148,18 +136,21 @@ def _download_all_tickers(tickers: list[str], *, period: str) -> pd.DataFrame:
     for start in range(0, len(tickers), _DOWNLOAD_CHUNK_SIZE):
         chunk = tickers[start : start + _DOWNLOAD_CHUNK_SIZE]
         parts.append(_download_batch(chunk, period=period))
-        # Add a 1-second delay between chunks to avoid rate limiting
-        if start + _DOWNLOAD_CHUNK_SIZE < len(tickers):
-            time.sleep(1)
     return _merge_downloads(parts)
 
 
 def _retry_single_ticker(ticker: str, *, period: str) -> pd.DataFrame:
     """Fallback single-ticker download when batch response is empty."""
     try:
-        return _download_with_retry(tickers=ticker, period=period)
-    except Exception as exc:
-        logger.warning("Single retry failed for %s: %s", ticker, exc)
+        return yf.download(
+            tickers=ticker,
+            period=period,
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+        )
+    except Exception as e:
+        logger.warning("Single retry failed for %s: %s", ticker, str(e)[:50])
         return pd.DataFrame()
 
 
@@ -170,25 +161,7 @@ def fetch_historical_data(
     benchmark: str = BENCHMARK_SYMBOL,
     min_trading_days: int = MIN_TRADING_DAYS,
 ) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
-    """
-    Batch-download daily OHLCV for all symbols plus the benchmark index.
-
-    Parameters
-    ----------
-    symbols:
-        Iterable of NSE symbols (with or without .NS suffix).
-    period:
-        yfinance lookback window (default: 2y from config).
-    benchmark:
-        Benchmark ticker (default: ^NSEI).
-    min_trading_days:
-        Symbols with fewer rows after cleaning are excluded.
-
-    Returns
-    -------
-    tuple[dict[str, pd.DataFrame], pd.DataFrame]
-        Mapping of display symbol -> OHLCV frame, and the benchmark frame.
-    """
+    """Batch-download daily OHLCV for all symbols plus the benchmark index."""
     tickers = []
     for raw in symbols:
         if not str(raw).strip():
@@ -200,7 +173,6 @@ def fetch_historical_data(
 
     benchmark_ticker = to_yfinance_ticker(benchmark)
 
-    # Deduplicate while preserving order; benchmark fetched separately for clarity.
     seen: set[str] = set()
     equity_tickers: list[str] = []
     for ticker in tickers:
