@@ -10,6 +10,8 @@ Usage:
 
 from __future__ import annotations
 
+import logging
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 import argparse
 import logging
 import sys
