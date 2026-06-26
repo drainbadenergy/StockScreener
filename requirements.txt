@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 pandas>=2.0.0
 yfinance>=0.2.40
 pandas-ta>=0.3.14b
@@ -11,3 +12,11 @@ yfinance
 pandas-ta
 tenacity
 apscheduler
+=======
+pandas>=2.0.0
+yfinance>=0.2.40
+pandas-ta>=0.3.14b
+streamlit>=1.32.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+>>>>>>> dcc7302aa2d9528f517b8a4b707d98d90954037a

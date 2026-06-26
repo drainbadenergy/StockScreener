@@ -123,6 +123,7 @@ def _download_batch(
     """Download a batch of tickers; returns raw yfinance DataFrame."""
     if not tickers:
         return pd.DataFrame()
+    # Use the retry wrapper!
     return _download_with_retry(tickers=tickers, period=period)
 
 
@@ -144,11 +145,15 @@ def _download_all_tickers(tickers: list[str], *, period: str) -> pd.DataFrame:
     for start in range(0, len(tickers), _DOWNLOAD_CHUNK_SIZE):
         chunk = tickers[start : start + _DOWNLOAD_CHUNK_SIZE]
         parts.append(_download_batch(chunk, period=period))
+        # Add a 1-second delay between chunks to avoid rate limiting
+        if start + _DOWNLOAD_CHUNK_SIZE < len(tickers):
+            time.sleep(1)
     return _merge_downloads(parts)
 
 
 def _retry_single_ticker(ticker: str, *, period: str) -> pd.DataFrame:
     """Fallback single-ticker download when batch response is empty."""
+    # Use the retry wrapper!
     return _download_with_retry(tickers=ticker, period=period)
 
 

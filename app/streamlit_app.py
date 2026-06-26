@@ -1,9 +1,12 @@
+<<<<<<< HEAD
 """
 Streamlit dashboard for the EOD Indian Breakout Screener.
 
 Launch:
     streamlit run app/streamlit_app.py
 """
+=======
+>>>>>>> dcc7302aa2d9528f517b8a4b707d98d90954037a
 
 from __future__ import annotations
 
@@ -13,7 +16,10 @@ from pathlib import Path
 
 import streamlit as st
 
+<<<<<<< HEAD
 # Ensure project root is on sys.path when launched via `streamlit run`.
+=======
+>>>>>>> dcc7302aa2d9528f517b8a4b707d98d90954037a
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
