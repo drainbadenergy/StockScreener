@@ -1,0 +1,13 @@
+pandas>=2.0.0
+yfinance>=0.2.40
+pandas-ta>=0.3.14b
+streamlit>=1.32.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+telebot
+python-dotenv
+pandas
+yfinance
+pandas-ta
+tenacity
+apscheduler
