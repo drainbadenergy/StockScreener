@@ -16,6 +16,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+import pandas_ta_classic as ta
 
 from stock_screener.alerts.telegram import send_breakout_alert
 from stock_screener.config import DEFAULT_SYMBOLS_FILE

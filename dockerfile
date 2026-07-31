@@ -1,24 +1,44 @@
-# Use a slim Python image
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1
+ARG PYTHON_VERSION=3.10.2
+FROM python:${PYTHON_VERSION}-slim as base
 
-# Set working directory
+# Prevents Python from writing pyc files.
+ENV PYTHONDONTWRITEBYTECODE=1
+# Keeps Python from buffering logs.
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Copy requirements first (for better caching)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 1. Install build tools for C-extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of the code
+# 2. Upgrade pip
+RUN python -m pip install --upgrade pip
+
+# 3. Create non-privileged user
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    appuser
+
+# 4. Copy requirements and install
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# 5. Copy application source code
 COPY . .
 
-# Make sure the data directory exists
-RUN mkdir -p data
+# Switch to non-privileged user
+USER appuser
 
-# Install apscheduler for in-container scheduling
-RUN pip install apscheduler
+EXPOSE 8080
 
-# Expose port for Streamlit (optional)
-EXPOSE 8501
-
-# Run the master script that starts both the bot and the scheduler
-CMD ["python", "run_production.py"]
+CMD python ./run_screener.py

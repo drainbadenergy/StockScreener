@@ -19,7 +19,7 @@ import logging
 from typing import Any
 
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta_classic as ta
 
 from stock_screener.config import (
     ANTI_CHASE_BUFFER,

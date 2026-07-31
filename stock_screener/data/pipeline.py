@@ -4,7 +4,6 @@ Uses yfinance parallel downloads (threads=True) to minimize network latency.
 """
 
 from __future__ import annotations
-
 import logging
 from typing import Iterable
 

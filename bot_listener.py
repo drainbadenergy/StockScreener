@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Background listener for the Telegram bot.
 Waits for the /run command and executes the screener directly.
@@ -91,7 +90,6 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Bot polling crashed: {e}. Restarting in 10 seconds...")
             time.sleep(10)
-=======
 """
 Background listener for the Telegram bot.
 Waits for the /run command and executes the screener.
@@ -135,4 +133,3 @@ if __name__ == "__main__":
     print("Bot is listening in the background... Send /run in Telegram.")
     # infinity_polling keeps the script awake 24/7 waiting for your commands
     bot.infinity_polling()
->>>>>>> dcc7302aa2d9528f517b8a4b707d98d90954037a
