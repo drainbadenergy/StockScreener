@@ -19,7 +19,7 @@ import logging
 import sys
 from pathlib import Path
 import pandas_ta_classic as ta
-
+from apscheduler.schedulers.background import BackgroundScheduler
 from stock_screener.alerts.telegram import send_breakout_alert
 from stock_screener.config import DEFAULT_SYMBOLS_FILE
 from stock_screener.data.pipeline import fetch_historical_data
@@ -110,8 +110,26 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Start the HTTP health check server so Back4app knows the container is alive
+    threading.Thread(target=_start_health_check_server, daemon=True).start()
 
+    # Run once immediately on container startup (optional — comment out if not wanted)
+    main([])
+
+    # Set up daily scheduler at 16:00 (4:00 PM)
+    scheduler = BackgroundScheduler()
+    # Note: Ensure timezone matches your desired market close timezone (e.g., 'Asia/Kolkata')
+    scheduler.add_job(main, 'cron', hour=16, minute=0, timezone='Asia/Kolkata')
+    scheduler.start()
+
+    logging.info("Screener scheduled to run daily at 4:00 PM IST. Waiting...")
+
+    # Keep the main process alive indefinitely
+    try:
+        while True:
+            threading.Event().wait(3600)
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
 """
 CLI entry point — run the EOD breakout screener and optionally push Telegram alerts.
 
