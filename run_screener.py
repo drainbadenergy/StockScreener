@@ -7,7 +7,9 @@ Usage:
     python run_screener.py --no-telegram
     python run_screener.py --symbols path/to/custom_symbols.txt
 """
-
+import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from __future__ import annotations
 
 import logging
@@ -23,6 +25,23 @@ from stock_screener.config import DEFAULT_SYMBOLS_FILE
 from stock_screener.data.pipeline import fetch_historical_data
 from stock_screener.engine.screener import BreakoutScreener
 from stock_screener.utils.symbols import load_symbols
+
+# --- HEALTH CHECK SERVER FOR BACK4APP ---
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format, *args):
+        # Keeps health check logs from spamming your terminal
+        return
+
+def _start_health_check_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
 
 
 def _configure_logging(verbose: bool) -> None:
@@ -124,6 +143,7 @@ def _configure_logging(verbose: bool) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    threading.Thread(target=_start_health_check_server, daemon=True).start()
     parser = argparse.ArgumentParser(description="EOD NSE Breakout Screener")
     parser.add_argument(
         "--symbols",
