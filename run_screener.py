@@ -7,10 +7,12 @@ Usage:
     python run_screener.py --no-telegram
     python run_screener.py --symbols path/to/custom_symbols.txt
 """
+
+from __future__ import annotations
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from __future__ import annotations
+
 
 import logging
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -215,7 +217,3 @@ def main(argv: list[str] | None = None) -> int:
             logger.warning("Telegram alert not sent (check .env credentials).")
 
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
